@@ -72,3 +72,87 @@
 	- 분석의 목적으로 사용할 때 유용하다.
 - 객체의 메타데이터 또는 태그 그 자체를 검색할 수는 없다.
 	- 이를 사용하려면 DynamoDB와 같은 인덱스가 달린 외부 DB를 사용해야 한다.
+# S3 Security
+## Object Encryption
+
+- S3 bucket에 존재하는 객체를 4가지 방식으로 암호화할 수 있다.
+- Server-Side Encryption(SSE)
+	- Amazon S3-Managed Keys(SSE-S3)
+		- 기본값으로 지정되어있다.
+		- AWS에 의해서 관리되고 소유되는 암호화 키를 이용해서 S3 객체를 암호화한다.
+	- AWS KMS(SSE-KMS)
+		- 암호화 키를 관리하는 AWS Key Management Service를 이용하여 객체를 암호화한다.
+	- Customer-Provided Keys(SSE-C)
+		- 내가 제공한 암호화 키를 이용하여 객체를 암호화한다.
+- Client-Side Encryption
+## SSE-S3
+
+- AWS에 의해서 관리되고 소유되는 암호화 키를 이용해서 S3 객체를 암호화한다.
+- 객체는 서버 사이드에서 암호화된다.
+- AES-256 해시 알고리즘을 이용하여 암호화된다.
+- 헤더에 "x-amz-server-side-encryption": "AES256" 을 반드시 포함해야한다.
+- 새로운 버킷이나 새로운 객체에 대해서 기본값으로 활성화 되어있다.
+## SSE-KMS
+
+- AWS KMS(Key Management Service)에 의해서 소유되고 관리되는 암호화 키를 이용하여 S3 객체를 암호화한다.
+- KMS를 사용하는 이점으로는 CloudTrail을 이용하여 암호화 키가 사용되는 것을 제어하거나 추적할 수 있다.
+- 객체는 서버 사이드에서 암호화된다.
+- 헤더에 "x-amz-server-side-encryption": "aws:kms" 을 반드시 포함해야한다.
+## SSE-KMS Limitation
+
+- S3 객체 암호화를 SSE-KMS를 사용한다면 KMS 사용량 제한이 걸릴 수있다.
+	- 암호화(업로드)할 때 KMS의 GenerateDataKey API를 사용
+	- 복호화(다운로드)할 때 Decrypt API를 사용
+- 사용량 제한을 Service Quotas Console에서 증가시키도록 요청할 수 있다.
+## SSE-C
+
+- 사용자에 의해 관리되는 암호화 키를 이용해서 업로드 시 같이 포함하여 요청하여 서버 사이드에서 객체를 암호화하는 방식이다.
+- S3는 사용자가 제공하는 암호화 키를 저장(보관)하지 않는다.
+- **반드시 HTTPS로 요청**해야한다.
+- 암호화 키는 매 HTTP 요청마다 반드시 HTTP 헤더에 포함되어야 한다.
+## Client-Side Encryption
+
+- 사용자가 암호화 키와 암호화 로직을 모두 관리하는 암호화 방식이다.
+- 객체를 업로드하기 전에 사용자는 반드시 객체를 암호화하여 업로드 해야한다.
+- 객체를 다운로드할 떄 사용자는 반드시 객체를 복호화하여 다운로드 해야한다.
+## Encryption in transit(SSL/TLS)
+
+- 전송중 암호화를 SSL/TLS라고 부른다.
+- S3는 두 가지의 엔드포인트를 제공한다.
+	- HTTP Endpoint: 암호화 제공 X
+	- HTTPS Endpoint: 전송중 암호화 제공
+- HTTPS가 추천되어지고, SSE-C를 사용한다면 HTTPS가 필수이다.
+## CORS
+
+- 사용자가 S3 버킷에 cross-origin 요청을 한다면, S3는 응답으로 올바른 CORS 헤더를 내뱉어야 한다.
+- 특정 Origin에 대해서 지정이 가능하다.
+## MFA Delete
+
+- S3에서 중요한 API Call을 할 때 MFA 인증이 필요하다.
+- 객체의 특정 버전을 영구적으로 삭제할 때, 또는 버킷의 버전관리를 중지할 때 필요하다.
+- 버전관리를 활성화할 때나 삭제된 버전들을 조회할 때는 필요하지 않다.
+- MFA Delete를 사용하기 위해서는 반드시 버킷에서 버전관리를 활성화해야한다.
+- 오직 버킷 소유자가 MFA Delete를 활성화/비활성화가 가능하다.
+## S3 Access Logs
+
+- 모니터링 목적으로 S3 버킷에 들어오는 모든 요청에 대한 로그를 로깅용 버킷에 수집할 . 수있다.
+- 로깅용 데이터는 데이터 분석 툴을 이용하여 분석될 . 수있다.
+- 로깅용 버킷은 같은 Region에 위치해야 한다.
+- 로깅용 버킷에 대한 로그를 다시 로깅용 버킷에 수집하는 행위는 절대 하면 안된다.
+	- 버킷의 용량이 기하급수적으로 늘어날 수 있다.
+## Pre-Signed URL
+
+- S3 콘솔, CLI, SDK를 이용하여 pre-signed URL을 생성할 수 있다.
+- pre-signed URL을 발급하여 객체를 조회하거나 업로드하는 행위를 만료기간동안 할 수 있다.
+## Access Points
+
+- S3 버킷을 위한 보안 관리자를 말한다.
+- 각각의 Access Points는 DNS name이 될 . 수있고, access point policy가 될 수 있다.
+## Access Points - VPC Origin
+
+- access point를 오직 VPC 내부에서만 접근이 가능하게끔 할 수 있다.
+- Access Point에 접근할 수 있도록 VPC Endpoint를 반드시 만들어야한다.
+- VPC Endpoint 정책은 반드시 타깃 버킷과 Access Point에 접근이 허용하게끔 해야한다.
+## S3 Object Lambda
+
+- 객체를 검색하여 객체를 얻기 전에 Lambda 함수를 통해서 변화된 객체를 얻게할 수 있다.
